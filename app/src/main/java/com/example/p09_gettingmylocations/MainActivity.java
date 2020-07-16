@@ -32,6 +32,8 @@ public class MainActivity extends AppCompatActivity {
 
     Button btnStart, btnStop,btnCheck;
     LocationRequest mLocationRequest;
+    FusedLocationProviderClient client;
+    LocationCallback mLocationCallback;
 
     String folderLocation;
     TextView tvLat,tvLng;
@@ -46,12 +48,19 @@ public class MainActivity extends AppCompatActivity {
         btnCheck = findViewById(R.id.btnCheck);
 
         int permissionCheck_Storage = ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        folderLocation = Environment.getExternalStorageDirectory().getAbsolutePath() + "/p09";
+
+        File folder = new File(folderLocation);
+        if (folder.exists() == false){
+            boolean result = folder.mkdir();
+            if (result == true) {
+                Log.d("File Read/Write", "Folder created");
+            }
+        }
+        client = LocationServices.getFusedLocationProviderClient(this);
 
 
-        final FusedLocationProviderClient client = LocationServices.getFusedLocationProviderClient(this);
-
-
-        final LocationCallback mLocationCallback = new LocationCallback() {
+        mLocationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
                 if (locationResult != null) {
@@ -66,31 +75,6 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 Intent i = new Intent(MainActivity.this,MyService.class);
                 startService(i);
-                if (checkPermission() == true){
-                    Task<Location> task= client.getLastLocation();
-                    task.addOnSuccessListener(MainActivity.this, new OnSuccessListener<Location>() {
-                        @Override
-                        public void onSuccess(Location location) {
-                            if (location !=null){
-                                String msg = "Lat: " + location.getLatitude() + "Lng: "+location.getLongitude();
-                                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
-                            }else{
-                                String msg = "No Last Known Location found";
-                                Toast.makeText(MainActivity.this,msg,Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                    });
-                }
-                File targetFile = new File (folderLocation,"data.txt");
-                try {
-                    FileWriter writer = new FileWriter(targetFile,true);
-                    writer.write("Hello World"+"\n");
-                    writer.flush();
-                    writer.close();
-                }catch (Exception e){
-                    Toast.makeText(MainActivity.this,"Failed to Write!",Toast.LENGTH_LONG).show();
-                    e.printStackTrace();
-                }
             }
         });
 
@@ -105,10 +89,6 @@ public class MainActivity extends AppCompatActivity {
         btnCheck.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent i = new Intent(MainActivity.this,MyService.class);
-                startActivity(i);
-
-                String folderLocation = Environment.getExternalStorageDirectory().getAbsolutePath() + "/p09";
                 File targetFile = new File(folderLocation,"data.txt");
 
                 if (targetFile.exists()){

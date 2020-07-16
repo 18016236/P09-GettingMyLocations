@@ -22,9 +22,10 @@ import java.io.File;
 import java.io.FileWriter;
 
 public class MyService extends Service {
-   boolean started;
+    boolean started;
     LocationCallback mLocationCallback;
     FusedLocationProviderClient client;
+    LocationRequest mLocationRequest;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -35,42 +36,29 @@ public class MyService extends Service {
     public void onCreate() {
         Log.d("Service","onCreate");
         super.onCreate();
-
         client = LocationServices.getFusedLocationProviderClient(this);
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mLocationRequest.setInterval(10000);
+        mLocationRequest.setFastestInterval(5000);
+        mLocationRequest.setSmallestDisplacement(100);
 
-        createLocationCallback();
-
-        String folderLocation = Environment.getExternalStorageDirectory().getAbsolutePath()+"/P09";
-        File folder = new File(folderLocation);
-        if (folder.exists()==false){
-            boolean result = folder.mkdir();
-            if (result == false){
-                Toast.makeText(MyService.this,"Folder can't be created in External Memory," + "Service exiting",Toast.LENGTH_SHORT).show();
-                stopSelf();
-            }
-        }
-    }
-
-    private void createLocationCallback() {
-        mLocationCallback = new LocationCallback(){
+        mLocationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
-                if (locationResult != null){
-                    Location locData = locationResult.getLastLocation();
-
-                    String data = locData.getLatitude() +"," + locData.getLongitude();
-                    Log.d("Service - Loc changed",data);
-
-                    String folderLocation = Environment.getExternalStorageDirectory().getAbsolutePath() + "/p09";
-                    File targetFile = new File(folderLocation,"data.txt");
-
-                    try{
-                        FileWriter writer = new FileWriter(targetFile,true);
-                        writer.write(data+"\n");
+                if (locationResult != null) {
+                    Location data = locationResult.getLastLocation();
+                    double lat= data.getLatitude();
+                    double lng= data.getLongitude();
+                    String msg = "Lat: " + lat + ", Lng: " + lng;
+                    try {
+                        String folderLocation = Environment.getExternalStorageDirectory().getAbsolutePath() + "/p09";
+                        File targetFile = new File(folderLocation, "data.txt");
+                        FileWriter writer = new FileWriter(targetFile, true);
+                        writer.write(msg+"\n");
                         writer.flush();
                         writer.close();
-                    }catch (Exception e){
-                        Toast.makeText(MyService.this,"Failed to write!",Toast.LENGTH_LONG).show();
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
@@ -78,22 +66,19 @@ public class MyService extends Service {
         };
     }
 
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-      Log.d("Service","onStart");
-      if (checkPermission() == true){
-          LocationRequest mLocationRequest = new LocationRequest();
-          mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-          mLocationRequest.setInterval(10000);
-          mLocationRequest.setFastestInterval(5000);
-          mLocationRequest.setSmallestDisplacement(100);
-
-          client.requestLocationUpdates(mLocationRequest,mLocationCallback,null);
-      }else{
-          stopSelf();
-      }
-
-        return  Service.START_STICKY;
+        Log.d("Service","onStart");
+        if (started == false){
+            started = true;
+            if (checkPermission()) {
+                client.requestLocationUpdates(mLocationRequest, mLocationCallback, null);
+            }
+        } else {
+            Log.d("Service", "Service is still running");
+        }
+        return super.onStartCommand(intent, flags, startId);
     }
 
     private boolean checkPermission() {
@@ -105,8 +90,8 @@ public class MyService extends Service {
                 MyService.this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
 
 
-        if (permissionCheck_Coarse == PermissionChecker.PERMISSION_GRANTED
-                && permissionCheck_Fine == PermissionChecker.PERMISSION_GRANTED
+        if ((permissionCheck_Coarse == PermissionChecker.PERMISSION_GRANTED
+                || permissionCheck_Fine == PermissionChecker.PERMISSION_GRANTED )
                 && permissionCheck_Storage == PermissionChecker.PERMISSION_GRANTED
         ) {
             return true;
@@ -119,5 +104,6 @@ public class MyService extends Service {
     public void onDestroy() {
         Log.d("Service","Service exited");
         super.onDestroy();
+        client.removeLocationUpdates(mLocationCallback);
     }
 }
